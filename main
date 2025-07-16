@@ -52,16 +52,12 @@ task.spawn(function()
                     table.insert(triedServers, server.id)
                     writefile(StorageFile, HttpService:JSONEncode(Tracked))
 
-                    local success = pcall(function()
-                        TeleportService:TeleportToPlaceInstance(PlaceId, server.id, Player)
-                    end)
-
-                    if success then return end
+                    TeleportService:TeleportToPlaceInstance(PlaceId, server.id, Player)
+                    return
                 end
             end
 
             if cursor == "" then
-                warn("No valid server found, retrying...")
                 task.wait(2)
                 cursor = ""
                 triedServers = {}
@@ -69,7 +65,7 @@ task.spawn(function()
         end
     end
 
-    -- GUI
+    -- GUI SETUP
     local guiParent = Player:WaitForChild("PlayerGui", 5) or game:GetService("CoreGui")
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "ServerHopUI"
@@ -100,7 +96,7 @@ task.spawn(function()
         button.MouseButton1Click:Connect(onClick)
     end
 
-    -- Buttons
+    -- Rejoin and ServerHop buttons
     CreateButtonFrame(
         UDim2.new(0.5, -160, 1, -130),
         "Rejoin Server",
@@ -112,8 +108,92 @@ task.spawn(function()
     CreateButtonFrame(
         UDim2.new(0.5, 10, 1, -130),
         "Server Hop",
-        function()
-            ServerHopSmart()
-        end
+        ServerHopSmart
     )
+
+    -- Toggle Arrow
+    local toggleBtn = Instance.new("TextButton")
+    toggleBtn.Text = "➤"
+    toggleBtn.Size = UDim2.new(0, 30, 0, 60)
+    toggleBtn.Position = UDim2.new(1, -35, 0.5, -30)
+    toggleBtn.AnchorPoint = Vector2.new(0, 0.5)
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleBtn.Parent = screenGui
+    toggleBtn.ZIndex = 3
+
+    -- Sidebar
+    local sidebar = Instance.new("Frame")
+    sidebar.Size = UDim2.new(0, 250, 1, 0)
+    sidebar.Position = UDim2.new(1, 0, 0, 0)
+    sidebar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    sidebar.BorderSizePixel = 0
+    sidebar.Visible = true
+    sidebar.Parent = screenGui
+    sidebar.ZIndex = 2
+
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Size = UDim2.new(1, 0, 1, 0)
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.ScrollBarThickness = 6
+    scroll.BackgroundTransparency = 1
+    scroll.Parent = sidebar
+    scroll.ZIndex = 2
+
+    local function refreshServerList()
+        scroll:ClearAllChildren()
+        local y = 0
+        for _, id in ipairs(Tracked.Jobs) do
+            local row = Instance.new("Frame")
+            row.Size = UDim2.new(1, -10, 0, 40)
+            row.Position = UDim2.new(0, 5, 0, y)
+            row.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+            row.BorderSizePixel = 0
+            row.Parent = scroll
+            row.ZIndex = 2
+
+            local text = Instance.new("TextLabel")
+            text.Size = UDim2.new(1, -60, 1, 0)
+            text.Position = UDim2.new(0, 5, 0, 0)
+            text.Text = "Server ID: "..id
+            text.TextXAlignment = Enum.TextXAlignment.Left
+            text.BackgroundTransparency = 1
+            text.TextColor3 = Color3.new(1, 1, 1)
+            text.Font = Enum.Font.Code
+            text.TextSize = 14
+            text.Parent = row
+            text.ZIndex = 2
+
+            local join = Instance.new("TextButton")
+            join.Size = UDim2.new(0, 50, 0, 30)
+            join.Position = UDim2.new(1, -55, 0.5, -15)
+            join.Text = "Join"
+            join.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+            join.TextColor3 = Color3.fromRGB(255, 255, 255)
+            join.Font = Enum.Font.GothamBold
+            join.TextSize = 14
+            join.Parent = row
+            join.ZIndex = 2
+
+            join.MouseButton1Click:Connect(function()
+                TeleportService:TeleportToPlaceInstance(PlaceId, id, Player)
+            end)
+
+            y += 45
+        end
+        scroll.CanvasSize = UDim2.new(0, 0, 0, y)
+    end
+
+    toggleBtn.MouseButton1Click:Connect(function()
+        local isOpen = sidebar.Position.X.Scale < 1
+        local target = isOpen and UDim2.new(1, 0, 0, 0) or UDim2.new(1, -250, 0, 0)
+        local tween = game:GetService("TweenService"):Create(
+            sidebar,
+            TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            { Position = target }
+        )
+        tween:Play()
+    end)
+
+    refreshServerList()
 end)

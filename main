@@ -36,7 +36,7 @@ task.spawn(function()
     screenGui.ResetOnSpawn = false
     screenGui.IgnoreGuiInset = true
 
-    -- Button Creator
+    -- Main Buttons
     local function CreateMainButton(text, position, callback)
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(0, 150, 0, 40)
@@ -53,12 +53,12 @@ task.spawn(function()
         return btn
     end
 
-    -- Rejoin & Hop Buttons (adjusted position)
-    CreateMainButton("Rejoin Server", UDim2.new(0.5, -160, 1, -160), function()
+    -- Buttons (repositioned)
+    CreateMainButton("Rejoin Server", UDim2.new(0.5, -160, 1, -170), function()
         TeleportService:TeleportToPlaceInstance(PlaceId, JobId, Player)
     end)
 
-    CreateMainButton("Server Hop", UDim2.new(0.5, 10, 1, -160), function()
+    CreateMainButton("Server Hop", UDim2.new(0.5, 10, 1, -170), function()
         loadstring([[
             local HttpService = game:GetService("HttpService")
             local TeleportService = game:GetService("TeleportService")
@@ -88,7 +88,7 @@ task.spawn(function()
         ]])()
     end)
 
-    -- Toggle Button
+    -- Sidebar Toggle Button
     local toggleBtn = Instance.new("TextButton", screenGui)
     toggleBtn.Text = "➤"
     toggleBtn.Size = UDim2.new(0, 30, 0, 40)
@@ -100,16 +100,15 @@ task.spawn(function()
     toggleBtn.TextSize = 18
     toggleBtn.ZIndex = 10
 
-    -- Sidebar
+    -- Sidebar Frame
     local sidebar = Instance.new("Frame", screenGui)
-    sidebar.Size = UDim2.new(0, 260, 0, 150)
-    sidebar.Position = UDim2.new(1, 0, 0.5, -75)
-    sidebar.AnchorPoint = Vector2.new(0, 0)
+    sidebar.Size = UDim2.new(0, 260, 0, 160)
+    sidebar.Position = UDim2.new(1, 0, 0.5, -80)
     sidebar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     sidebar.BorderSizePixel = 0
     sidebar.ZIndex = 9
 
-    -- Scroll View
+    -- Scroll area
     local scroll = Instance.new("ScrollingFrame", sidebar)
     scroll.Size = UDim2.new(1, 0, 1, 0)
     scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -117,20 +116,10 @@ task.spawn(function()
     scroll.BackgroundTransparency = 1
     scroll.ZIndex = 9
 
+    -- Refresh list
     local function refreshServerList()
         scroll:ClearAllChildren()
         local y = 0
-
-        local header = Instance.new("TextLabel", scroll)
-        header.Size = UDim2.new(1, -10, 0, 22)
-        header.Position = UDim2.new(0, 5, 0, y)
-        header.BackgroundTransparency = 1
-        header.TextColor3 = Color3.fromRGB(200, 200, 200)
-        header.Font = Enum.Font.Gotham
-        header.TextSize = 14
-        header.TextXAlignment = Enum.TextXAlignment.Left
-        header.Text = "Recent Servers"
-        y += 24
 
         for _, id in ipairs(Tracked) do
             local row = Instance.new("Frame", scroll)
@@ -140,16 +129,16 @@ task.spawn(function()
             row.BorderSizePixel = 0
             row.ZIndex = 9
 
-            local text = Instance.new("TextLabel", row)
-            text.Size = UDim2.new(1, -70, 1, 0)
-            text.Position = UDim2.new(0, 5, 0, 0)
-            text.TextXAlignment = Enum.TextXAlignment.Left
-            text.BackgroundTransparency = 1
-            text.TextColor3 = id == JobId and Color3.fromRGB(100, 255, 100) or Color3.new(1, 1, 1)
-            text.Font = Enum.Font.Code
-            text.TextSize = 13
-            text.Text = (id == JobId and "[Current Server] " or "") .. "ID: " .. id
-            text.ZIndex = 9
+            local label = Instance.new("TextLabel", row)
+            label.Size = UDim2.new(1, -70, 1, 0)
+            label.Position = UDim2.new(0, 5, 0, 0)
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.BackgroundTransparency = 1
+            label.TextColor3 = id == JobId and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 255, 255)
+            label.Font = Enum.Font.Gotham
+            label.TextSize = 14
+            label.Text = (id == JobId and "[Current] " or "") .. "Server ID: " .. id
+            label.ZIndex = 9
 
             if id ~= JobId then
                 local join = Instance.new("TextButton", row)
@@ -167,15 +156,18 @@ task.spawn(function()
                 end)
             end
 
-            y += 42
+            y += 45
         end
-        scroll.CanvasSize = UDim2.new(0, 0, 0, y + 10)
+
+        scroll.CanvasSize = UDim2.new(0, 0, 0, y + 5)
     end
 
+    -- Toggle Animation
+    local open = false
     toggleBtn.MouseButton1Click:Connect(function()
-        local open = sidebar.Position.X.Offset < screenGui.AbsoluteSize.X
-        local goal = open and UDim2.new(1, 0, 0.5, -75) or UDim2.new(1, -265, 0.5, -75)
-        toggleBtn.Text = open and "➤" or "⬅"
+        open = not open
+        toggleBtn.Text = open and "⬅" or "➤"
+        local goal = open and UDim2.new(1, -265, 0.5, -80) or UDim2.new(1, 0, 0.5, -80)
         TweenService:Create(sidebar, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = goal }):Play()
     end)
 

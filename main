@@ -178,14 +178,30 @@ task.spawn(function()
             end
         end
 
-        -- Get the target's avatar thumbnail
-        local success, thumbUrl = pcall(function()
-            return Players:GetUserThumbnailAsync(id, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+        -- Check if the user is in the current server
+        for _, p in ipairs(Players:GetPlayers()) do
+            if (isUserId and p.UserId == id) or (not isUserId and p.Name:lower() == input:lower()) then
+                warn("User is already in your current server!")
+                return
+            end
+        end
+
+        -- Fetch the target's thumbnail using Roblox thumbnails API
+        local thumbUrl = nil
+        local thumbSuccess, thumbResponse = pcall(function()
+            return game:HttpGet("https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=" .. id .. "&format=Png&size=150x150&isCircular=false")
         end)
-        if not success or not thumbUrl then
-            warn("Could not get user thumbnail.")
+        if thumbSuccess and thumbResponse then
+            local ok, thumbData = pcall(function() return HttpService:JSONDecode(thumbResponse) end)
+            if ok and thumbData and thumbData.data and thumbData.data[1] and thumbData.data[1].imageUrl then
+                thumbUrl = thumbData.data[1].imageUrl
+            end
+        end
+        if not thumbUrl then
+            warn("Could not get user thumbnail from API.")
             return
         end
+        print("[DEBUG] Target thumbnail URL:", thumbUrl)
 
         coroutine.wrap(function()
             local cursor = nil
@@ -196,33 +212,39 @@ task.spawn(function()
                 if not s or not res then break end
                 cursor = res.nextPageCursor
                 for _, srv in pairs(res.data) do
-                    if srv.playing > 0 and srv.id ~= JobId and srv.playerTokens then
-                        -- Prepare thumbnail batch request
-                        local batch = {}
-                        for _, token in ipairs(srv.playerTokens) do
-                            table.insert(batch, {
-                                type = "AvatarHeadShot",
-                                targetId = 0,
-                                token = token,
-                                format = "png",
-                                size = "150x150"
+                    if srv.playing > 0 and srv.id ~= JobId then
+                        if not srv.playerTokens or #srv.playerTokens == 0 then
+                            print("[DEBUG] No playerTokens for server:", srv.id)
+                        else
+                            print("[DEBUG] Checking server:", srv.id, "with", #srv.playerTokens, "tokens")
+                            -- Prepare thumbnail batch request
+                            local batch = {}
+                            for _, token in ipairs(srv.playerTokens) do
+                                table.insert(batch, {
+                                    type = "AvatarHeadShot",
+                                    targetId = 0,
+                                    token = token,
+                                    format = "png",
+                                    size = "150x150"
+                                })
+                            end
+                            local payload = HttpService:JSONEncode(batch)
+                            local result = syn and syn.request and syn.request({
+                                Url = "https://thumbnails.roblox.com/v1/batch",
+                                Method = "POST",
+                                Headers = { ["Content-Type"] = "application/json" },
+                                Body = payload
                             })
-                        end
-                        local payload = HttpService:JSONEncode(batch)
-                        local result = syn and syn.request and syn.request({
-                            Url = "https://thumbnails.roblox.com/v1/batch",
-                            Method = "POST",
-                            Headers = { ["Content-Type"] = "application/json" },
-                            Body = payload
-                        })
-                        if result and result.Body then
-                            local ok, decoded = pcall(function() return HttpService:JSONDecode(result.Body) end)
-                            if ok and decoded and decoded.data then
-                                for _, p in ipairs(decoded.data) do
-                                    if p.imageUrl == thumbUrl then
-                                        found = true
-                                        TeleportService:TeleportToPlaceInstance(PlaceId, srv.id, Player)
-                                        break
+                            if result and result.Body then
+                                local ok, decoded = pcall(function() return HttpService:JSONDecode(result.Body) end)
+                                if ok and decoded and decoded.data then
+                                    for _, p in ipairs(decoded.data) do
+                                        print("[DEBUG] Comparing:", p.imageUrl, thumbUrl)
+                                        if p.imageUrl == thumbUrl then
+                                            found = true
+                                            TeleportService:TeleportToPlaceInstance(PlaceId, srv.id, Player)
+                                            break
+                                        end
                                     end
                                 end
                             end

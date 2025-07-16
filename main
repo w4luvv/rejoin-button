@@ -24,29 +24,52 @@ task.spawn(function()
         writefile(StorageFile, HttpService:JSONEncode(Tracked))
     end
 
-    local function InstantServerHop()
+    local function ServerHopSmart()
         local cursor = ""
-        local success, res = pcall(function()
-            return game:HttpGet(`https://games.roblox.com/v1/games/{PlaceId}/servers/Public?sortOrder=Asc&limit=100`)
-        end)
+        local triedServers = {}
 
-        if success then
-            local body = HttpService:JSONDecode(res)
-            local servers = body.data
-            for _, server in pairs(servers) do
-                if server.playing < server.maxPlayers and server.id ~= JobId and not table.find(Tracked.Jobs, server.id) then
-                    table.insert(Tracked.Jobs, server.id)
-                    writefile(StorageFile, HttpService:JSONEncode(Tracked))
-                    TeleportService:TeleportToPlaceInstance(PlaceId, server.id, Player)
-                    return
-                end
-            end
+        local function fetchServers()
+            local url = `https://games.roblox.com/v1/games/{PlaceId}/servers/Public?sortOrder=Asc&limit=100{cursor ~= "" and "&cursor="..cursor or ""}`
+            local success, res = pcall(function() return game:HttpGet(url) end)
+            if not success then return nil end
+            local data = HttpService:JSONDecode(res)
+            cursor = data.nextPageCursor or ""
+            return data.data
         end
 
-        warn("⚠ No new server found instantly.")
+        while true do
+            local servers = fetchServers()
+            if not servers then break end
+
+            for _, server in ipairs(servers) do
+                local isJoinable = server.playing < server.maxPlayers
+                    and not table.find(Tracked.Jobs, server.id)
+                    and not table.find(triedServers, server.id)
+                    and server.id ~= JobId
+
+                if isJoinable then
+                    table.insert(Tracked.Jobs, server.id)
+                    table.insert(triedServers, server.id)
+                    writefile(StorageFile, HttpService:JSONEncode(Tracked))
+
+                    local success = pcall(function()
+                        TeleportService:TeleportToPlaceInstance(PlaceId, server.id, Player)
+                    end)
+
+                    if success then return end
+                end
+            end
+
+            if cursor == "" then
+                warn("No valid server found, retrying...")
+                task.wait(2)
+                cursor = ""
+                triedServers = {}
+            end
+        end
     end
 
-    -- GUI Setup
+    -- GUI
     local guiParent = Player:WaitForChild("PlayerGui", 5) or game:GetService("CoreGui")
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "ServerHopUI"
@@ -90,7 +113,7 @@ task.spawn(function()
         UDim2.new(0.5, 10, 1, -130),
         "Server Hop",
         function()
-            InstantServerHop()
+            ServerHopSmart()
         end
     )
 end)

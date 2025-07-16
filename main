@@ -1,0 +1,36 @@
+task.spawn(function()
+    local Players = game:GetService("Players")
+    local TeleportService = game:GetService("TeleportService")
+    local player = Players.LocalPlayer
+    local guiParent = player:FindFirstChild("PlayerGui") or game:GetService("CoreGui")
+
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "RejoinButtonUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.IgnoreGuiInset = true
+    screenGui.Parent = guiParent
+
+    local dragFrame = Instance.new("Frame")
+    dragFrame.Size = UDim2.new(0, 150, 0, 45)
+    dragFrame.Position = UDim2.new(0.5, -75, 1, -130) -- above hotbar
+    dragFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    dragFrame.BorderSizePixel = 0
+    dragFrame.Active = true
+    dragFrame.Draggable = true
+    dragFrame.Parent = screenGui
+
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, 0, 1, 0)
+    button.Position = UDim2.new(0, 0, 0, 0)
+    button.Text = "Rejoin Server"
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 17
+    button.AutoButtonColor = true
+    button.Parent = dragFrame
+
+    button.MouseButton1Click:Connect(function()
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
+    end)
+end)

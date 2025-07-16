@@ -87,7 +87,7 @@ task.spawn(function()
 
     local sidebar = Instance.new("Frame", screenGui)
     sidebar.Size = UDim2.new(0, 260, 0, 160)
-    sidebar.Position = UDim2.new(1, -270, 0.5, -80) -- moved inside the screen
+    sidebar.Position = UDim2.new(1, -350, 0.5, -80) -- moved further left
     sidebar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     sidebar.Visible = false
 
@@ -137,7 +137,7 @@ task.spawn(function()
 
     local sniperFrame = Instance.new("Frame", screenGui)
     sniperFrame.Size = UDim2.new(0, 260, 0, 140)
-    sniperFrame.Position = UDim2.new(1, -270, 0.5, -70) -- moved inside the screen
+    sniperFrame.Position = UDim2.new(1, -350, 0.5, -70) -- moved further left
     sniperFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     sniperFrame.Visible = false
 
@@ -163,7 +163,8 @@ task.spawn(function()
     snipeBtn.MouseButton1Click:Connect(function()
         local input = inputBox.Text
         local id
-        if tonumber(input) then
+        local isUserId = tonumber(input) ~= nil
+        if isUserId then
             id = tonumber(input)
         else
             local success, result = pcall(function()
@@ -177,6 +178,15 @@ task.spawn(function()
             end
         end
 
+        -- Get the target's avatar thumbnail
+        local success, thumbUrl = pcall(function()
+            return Players:GetUserThumbnailAsync(id, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+        end)
+        if not success or not thumbUrl then
+            warn("Could not get user thumbnail.")
+            return
+        end
+
         coroutine.wrap(function()
             local cursor = nil
             local found = false
@@ -186,14 +196,34 @@ task.spawn(function()
                 if not s or not res then break end
                 cursor = res.nextPageCursor
                 for _, srv in pairs(res.data) do
-                    if srv.playing > 0 and srv.id ~= JobId then
-                        -- Check if the user is in this server
-                        if srv.playerIds then
-                            for _, pid in ipairs(srv.playerIds) do
-                                if pid == id then
-                                    TeleportService:TeleportToPlaceInstance(PlaceId, srv.id, Player)
-                                    found = true
-                                    break
+                    if srv.playing > 0 and srv.id ~= JobId and srv.playerTokens then
+                        -- Prepare thumbnail batch request
+                        local batch = {}
+                        for _, token in ipairs(srv.playerTokens) do
+                            table.insert(batch, {
+                                type = "AvatarHeadShot",
+                                targetId = 0,
+                                token = token,
+                                format = "png",
+                                size = "150x150"
+                            })
+                        end
+                        local payload = HttpService:JSONEncode(batch)
+                        local result = syn and syn.request and syn.request({
+                            Url = "https://thumbnails.roblox.com/v1/batch",
+                            Method = "POST",
+                            Headers = { ["Content-Type"] = "application/json" },
+                            Body = payload
+                        })
+                        if result and result.Body then
+                            local ok, decoded = pcall(function() return HttpService:JSONDecode(result.Body) end)
+                            if ok and decoded and decoded.data then
+                                for _, p in ipairs(decoded.data) do
+                                    if p.imageUrl == thumbUrl then
+                                        found = true
+                                        TeleportService:TeleportToPlaceInstance(PlaceId, srv.id, Player)
+                                        break
+                                    end
                                 end
                             end
                         end
@@ -204,7 +234,7 @@ task.spawn(function()
                 task.wait(0.5)
             end
             if not found then
-                warn("User not found in any server of this game.")
+                warn("User not found in any server of this game (using thumbnail matching). They may be in a private server or not present.")
             end
         end)()
     end)

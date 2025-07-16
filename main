@@ -14,7 +14,7 @@ task.spawn(function()
     -- Rejoin Same Server Button (Left)
     local dragFrame1 = Instance.new("Frame")
     dragFrame1.Size = UDim2.new(0, 150, 0, 45)
-    dragFrame1.Position = UDim2.new(0.5, -160, 1, -130) -- slightly more left
+    dragFrame1.Position = UDim2.new(0.5, -160, 1, -130)
     dragFrame1.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     dragFrame1.BorderSizePixel = 0
     dragFrame1.Active = true
@@ -35,10 +35,10 @@ task.spawn(function()
         TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
     end)
 
-    -- New Random Server Button (Right)
+    -- New Server Button (Right)
     local dragFrame2 = Instance.new("Frame")
     dragFrame2.Size = UDim2.new(0, 150, 0, 45)
-    dragFrame2.Position = UDim2.new(0.5, 10, 1, -130) -- slightly more right
+    dragFrame2.Position = UDim2.new(0.5, 10, 1, -130)
     dragFrame2.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     dragFrame2.BorderSizePixel = 0
     dragFrame2.Active = true
@@ -56,23 +56,38 @@ task.spawn(function()
     newServerBtn.Parent = dragFrame2
 
     newServerBtn.MouseButton1Click:Connect(function()
-        local servers = {}
-        local success, result = pcall(function()
-            local cursor = ""
-            local response = game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?limit=100&sortOrder=Desc" .. (cursor ~= "" and "&cursor=" .. cursor or ""))
-            local data = HttpService:JSONDecode(response)
+        local placeId = game.PlaceId
+        local currentJobId = game.JobId
+        local cursor = ""
+        local found = false
 
-            for _, server in pairs(data.data) do
-                if server.playing < server.maxPlayers and server.id ~= game.JobId then
-                    table.insert(servers, server.id)
+        for _ = 1, 5 do -- Try up to 5 pages of servers
+            local url = "https://games.roblox.com/v1/games/"..placeId.."/servers/Public?limit=100"..(cursor ~= "" and "&cursor="..cursor or "")
+            local success, response = pcall(function()
+                return game:HttpGet(url)
+            end)
+
+            if success then
+                local data = HttpService:JSONDecode(response)
+                for _, server in pairs(data.data) do
+                    if server.id ~= currentJobId and server.playing < server.maxPlayers then
+                        TeleportService:TeleportToPlaceInstance(placeId, server.id, player)
+                        found = true
+                        break
+                    end
                 end
+                if found then break end
+                cursor = data.nextPageCursor
+                if not cursor then break end
+            else
+                warn("Failed to fetch server list.")
+                break
             end
-        end)
+        end
 
-        if success and #servers > 0 then
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)], player)
-        else
-            warn("No available servers found.")
+        if not found then
+            warn("No different server found. Joining normal...")
+            TeleportService:Teleport(placeId, player)
         end
     end)
 end)

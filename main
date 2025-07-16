@@ -1,4 +1,8 @@
 task.spawn(function()
+    if not game:IsLoaded() then
+        game.Loaded:Wait()
+    end
+
     local Players = game:GetService("Players")
     local TeleportService = game:GetService("TeleportService")
     local HttpService = game:GetService("HttpService")
@@ -73,7 +77,6 @@ task.spawn(function()
                             return
                         end
                     end
-                    -- retry again in 2 seconds
                     task.wait(2)
                 else
                     warn("[New Server] Failed to get server list. Retrying...")

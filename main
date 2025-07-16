@@ -56,7 +56,7 @@ task.spawn(function()
     end)
 
     CreateMainButton("Server Hop", UDim2.new(0.5, 10, 1, -190), function()
-        loadstring([[
+        loadstring([[ 
             local HttpService = game:GetService("HttpService")
             local TeleportService = game:GetService("TeleportService")
             local cursor = ""
@@ -87,7 +87,7 @@ task.spawn(function()
 
     local sidebar = Instance.new("Frame", screenGui)
     sidebar.Size = UDim2.new(0, 260, 0, 160)
-    sidebar.Position = UDim2.new(1, 0, 0.5, -80)
+    sidebar.Position = UDim2.new(1, -270, 0.5, -80) -- moved inside the screen
     sidebar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     sidebar.Visible = false
 
@@ -137,7 +137,7 @@ task.spawn(function()
 
     local sniperFrame = Instance.new("Frame", screenGui)
     sniperFrame.Size = UDim2.new(0, 260, 0, 140)
-    sniperFrame.Position = UDim2.new(1, 0, 0.5, -70)
+    sniperFrame.Position = UDim2.new(1, -270, 0.5, -70) -- moved inside the screen
     sniperFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     sniperFrame.Visible = false
 
@@ -161,41 +161,50 @@ task.spawn(function()
     snipeBtn.TextColor3 = Color3.new(1, 1, 1)
 
     snipeBtn.MouseButton1Click:Connect(function()
-        local id = tonumber(inputBox.Text) or Players:GetUserIdFromNameAsync(inputBox.Text)
-        local thumb = Players:GetUserThumbnailAsync(id, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
-        local function getServers(cursor)
-            local url = "https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?limit=100"..(cursor and "&cursor="..cursor or "")
-            local s, res = pcall(function() return HttpService:JSONDecode(game:HttpGet(url)) end)
-            return s and res or nil
+        local input = inputBox.Text
+        local id
+        if tonumber(input) then
+            id = tonumber(input)
+        else
+            local success, result = pcall(function()
+                return Players:GetUserIdFromNameAsync(input)
+            end)
+            if success and result then
+                id = result
+            else
+                warn("Invalid username or ID.")
+                return
+            end
         end
+
         coroutine.wrap(function()
             local cursor = nil
-            while true do
-                local data = getServers(cursor)
-                if not data then break end
-                cursor = data.nextPageCursor
-                for _, srv in pairs(data.data) do
-                    for _, token in pairs(srv.playerTokens or {}) do
-                        local payload = HttpService:JSONEncode({
-                            { type = "AvatarHeadShot", targetId = 0, token = token, format = "png", size = "150x150" }
-                        })
-                        local result = syn.request({
-                            Url = "https://thumbnails.roblox.com/v1/batch",
-                            Method = "POST",
-                            Headers = { ["Content-Type"] = "application/json" },
-                            Body = payload
-                        })
-                        local decoded = HttpService:JSONDecode(result.Body)
-                        for _, p in ipairs(decoded.data) do
-                            if p.imageUrl == thumb then
-                                TeleportService:TeleportToPlaceInstance(PlaceId, srv.id, Player)
-                                return
+            local found = false
+            while not found do
+                local url = "https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?limit=100"..(cursor and "&cursor="..cursor or "")
+                local s, res = pcall(function() return HttpService:JSONDecode(game:HttpGet(url)) end)
+                if not s or not res then break end
+                cursor = res.nextPageCursor
+                for _, srv in pairs(res.data) do
+                    if srv.playing > 0 and srv.id ~= JobId then
+                        -- Check if the user is in this server
+                        if srv.playerIds then
+                            for _, pid in ipairs(srv.playerIds) do
+                                if pid == id then
+                                    TeleportService:TeleportToPlaceInstance(PlaceId, srv.id, Player)
+                                    found = true
+                                    break
+                                end
                             end
                         end
                     end
+                    if found then break end
                 end
-                if not cursor then break end
-                task.wait()
+                if not cursor or found then break end
+                task.wait(0.5)
+            end
+            if not found then
+                warn("User not found in any server of this game.")
             end
         end)()
     end)
@@ -203,7 +212,7 @@ task.spawn(function()
     local toggleSidebar = Instance.new("TextButton", screenGui)
     toggleSidebar.Text = "Servers"
     toggleSidebar.Size = UDim2.new(0, 80, 0, 35)
-    toggleSidebar.Position = UDim2.new(0, 10, 1, -60)
+    toggleSidebar.Position = UDim2.new(1, -100, 0.5, -40) -- middle right
     toggleSidebar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     toggleSidebar.TextColor3 = Color3.new(1, 1, 1)
     toggleSidebar.Font = Enum.Font.GothamBold
@@ -212,7 +221,7 @@ task.spawn(function()
     local toggleSniper = Instance.new("TextButton", screenGui)
     toggleSniper.Text = "Sniper"
     toggleSniper.Size = UDim2.new(0, 80, 0, 35)
-    toggleSniper.Position = UDim2.new(0, 100, 1, -60)
+    toggleSniper.Position = UDim2.new(1, -100, 0.5, 10) -- middle right, below Servers
     toggleSniper.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     toggleSniper.TextColor3 = Color3.new(1, 1, 1)
     toggleSniper.Font = Enum.Font.GothamBold
@@ -230,4 +239,4 @@ task.spawn(function()
     end)
 
     refreshServerList()
-end)
+end) 

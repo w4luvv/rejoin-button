@@ -29,14 +29,12 @@ task.spawn(function()
         writefile(StorageFile, HttpService:JSONEncode(Tracked))
     end
 
-    -- GUI SETUP
     local guiParent = Player:WaitForChild("PlayerGui", 5) or game:GetService("CoreGui")
     local screenGui = Instance.new("ScreenGui", guiParent)
     screenGui.Name = "ServerHopUI"
     screenGui.ResetOnSpawn = false
     screenGui.IgnoreGuiInset = true
 
-    -- Main Buttons
     local function CreateMainButton(text, position, callback)
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(0, 150, 0, 40)
@@ -53,7 +51,6 @@ task.spawn(function()
         return btn
     end
 
-    -- Buttons (repositioned)
     CreateMainButton("Rejoin Server", UDim2.new(0.5, -160, 1, -170), function()
         TeleportService:TeleportToPlaceInstance(PlaceId, JobId, Player)
     end)
@@ -88,7 +85,6 @@ task.spawn(function()
         ]])()
     end)
 
-    -- Sidebar Toggle Button
     local toggleBtn = Instance.new("TextButton", screenGui)
     toggleBtn.Text = "➤"
     toggleBtn.Size = UDim2.new(0, 30, 0, 40)
@@ -100,7 +96,6 @@ task.spawn(function()
     toggleBtn.TextSize = 18
     toggleBtn.ZIndex = 10
 
-    -- Sidebar Frame
     local sidebar = Instance.new("Frame", screenGui)
     sidebar.Size = UDim2.new(0, 260, 0, 160)
     sidebar.Position = UDim2.new(1, 0, 0.5, -80)
@@ -108,7 +103,6 @@ task.spawn(function()
     sidebar.BorderSizePixel = 0
     sidebar.ZIndex = 9
 
-    -- Scroll area
     local scroll = Instance.new("ScrollingFrame", sidebar)
     scroll.Size = UDim2.new(1, 0, 1, 0)
     scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -116,11 +110,9 @@ task.spawn(function()
     scroll.BackgroundTransparency = 1
     scroll.ZIndex = 9
 
-    -- Refresh list
     local function refreshServerList()
         scroll:ClearAllChildren()
         local y = 0
-
         for _, id in ipairs(Tracked) do
             local row = Instance.new("Frame", scroll)
             row.Size = UDim2.new(1, -10, 0, 40)
@@ -150,19 +142,15 @@ task.spawn(function()
                 join.Font = Enum.Font.GothamBold
                 join.TextSize = 13
                 join.ZIndex = 9
-
                 join.MouseButton1Click:Connect(function()
                     TeleportService:TeleportToPlaceInstance(PlaceId, id, Player)
                 end)
             end
-
             y += 45
         end
-
         scroll.CanvasSize = UDim2.new(0, 0, 0, y + 5)
     end
 
-    -- Toggle Animation
     local open = false
     toggleBtn.MouseButton1Click:Connect(function()
         open = not open

@@ -1,36 +1,78 @@
 task.spawn(function()
     local Players = game:GetService("Players")
     local TeleportService = game:GetService("TeleportService")
+    local HttpService = game:GetService("HttpService")
     local player = Players.LocalPlayer
     local guiParent = player:FindFirstChild("PlayerGui") or game:GetService("CoreGui")
 
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "RejoinButtonUI"
+    screenGui.Name = "ServerButtonsUI"
     screenGui.ResetOnSpawn = false
     screenGui.IgnoreGuiInset = true
     screenGui.Parent = guiParent
 
-    local dragFrame = Instance.new("Frame")
-    dragFrame.Size = UDim2.new(0, 150, 0, 45)
-    dragFrame.Position = UDim2.new(0.5, -75, 1, -130) -- above hotbar
-    dragFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    dragFrame.BorderSizePixel = 0
-    dragFrame.Active = true
-    dragFrame.Draggable = true
-    dragFrame.Parent = screenGui
+    -- Rejoin Same Server Button (Left)
+    local dragFrame1 = Instance.new("Frame")
+    dragFrame1.Size = UDim2.new(0, 150, 0, 45)
+    dragFrame1.Position = UDim2.new(0.5, -160, 1, -130) -- slightly more left
+    dragFrame1.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    dragFrame1.BorderSizePixel = 0
+    dragFrame1.Active = true
+    dragFrame1.Draggable = true
+    dragFrame1.Parent = screenGui
 
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, 0, 1, 0)
-    button.Position = UDim2.new(0, 0, 0, 0)
-    button.Text = "Rejoin Server"
-    button.TextColor3 = Color3.new(1, 1, 1)
-    button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    button.Font = Enum.Font.GothamBold
-    button.TextSize = 17
-    button.AutoButtonColor = true
-    button.Parent = dragFrame
+    local rejoinBtn = Instance.new("TextButton")
+    rejoinBtn.Size = UDim2.new(1, 0, 1, 0)
+    rejoinBtn.Text = "Rejoin Server"
+    rejoinBtn.TextColor3 = Color3.new(1, 1, 1)
+    rejoinBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    rejoinBtn.Font = Enum.Font.GothamBold
+    rejoinBtn.TextSize = 17
+    rejoinBtn.AutoButtonColor = true
+    rejoinBtn.Parent = dragFrame1
 
-    button.MouseButton1Click:Connect(function()
+    rejoinBtn.MouseButton1Click:Connect(function()
         TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
+    end)
+
+    -- New Random Server Button (Right)
+    local dragFrame2 = Instance.new("Frame")
+    dragFrame2.Size = UDim2.new(0, 150, 0, 45)
+    dragFrame2.Position = UDim2.new(0.5, 10, 1, -130) -- slightly more right
+    dragFrame2.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    dragFrame2.BorderSizePixel = 0
+    dragFrame2.Active = true
+    dragFrame2.Draggable = true
+    dragFrame2.Parent = screenGui
+
+    local newServerBtn = Instance.new("TextButton")
+    newServerBtn.Size = UDim2.new(1, 0, 1, 0)
+    newServerBtn.Text = "New Server"
+    newServerBtn.TextColor3 = Color3.new(1, 1, 1)
+    newServerBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    newServerBtn.Font = Enum.Font.GothamBold
+    newServerBtn.TextSize = 17
+    newServerBtn.AutoButtonColor = true
+    newServerBtn.Parent = dragFrame2
+
+    newServerBtn.MouseButton1Click:Connect(function()
+        local servers = {}
+        local success, result = pcall(function()
+            local cursor = ""
+            local response = game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?limit=100&sortOrder=Desc" .. (cursor ~= "" and "&cursor=" .. cursor or ""))
+            local data = HttpService:JSONDecode(response)
+
+            for _, server in pairs(data.data) do
+                if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                    table.insert(servers, server.id)
+                end
+            end
+        end)
+
+        if success and #servers > 0 then
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)], player)
+        else
+            warn("No available servers found.")
+        end
     end)
 end)

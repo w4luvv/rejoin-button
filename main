@@ -5,7 +5,6 @@ task.spawn(function()
 
     local Players = game:GetService("Players")
     local TeleportService = game:GetService("TeleportService")
-    local HttpService = game:GetService("HttpService")
     local player = Players.LocalPlayer
     local guiParent = player:WaitForChild("PlayerGui", 5) or game:GetService("CoreGui")
 
@@ -60,29 +59,6 @@ task.spawn(function()
     newServerBtn.Parent = dragFrame2
 
     newServerBtn.MouseButton1Click:Connect(function()
-        task.spawn(function()
-            local placeId = game.PlaceId
-            local currentJobId = game.JobId
-
-            while true do
-                local success, response = pcall(function()
-                    return game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100")
-                end)
-
-                if success then
-                    local data = HttpService:JSONDecode(response)
-                    for _, server in ipairs(data.data) do
-                        if server.id ~= currentJobId and server.playing < server.maxPlayers then
-                            TeleportService:TeleportToPlaceInstance(placeId, server.id, player)
-                            return
-                        end
-                    end
-                    task.wait(2)
-                else
-                    warn("[New Server] Failed to get server list. Retrying...")
-                    task.wait(2)
-                end
-            end
-        end)
+        TeleportService:Teleport(game.PlaceId, player) -- Joins a random public server
     end)
 end)

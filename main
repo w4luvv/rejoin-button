@@ -35,7 +35,7 @@ task.spawn(function()
         TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
     end)
 
-    -- New Server Button (Different server)
+    -- New Server Button
     local dragFrame2 = Instance.new("Frame")
     dragFrame2.Size = UDim2.new(0, 150, 0, 45)
     dragFrame2.Position = UDim2.new(0.5, 10, 1, -130)
@@ -59,36 +59,26 @@ task.spawn(function()
         task.spawn(function()
             local placeId = game.PlaceId
             local currentJobId = game.JobId
-            local cursor = ""
-            local found = false
 
-            for _ = 1, 5 do
-                local url = "https://games.roblox.com/v1/games/" .. placeId .. "/servers/Public?limit=100" .. (cursor ~= "" and "&cursor=" .. cursor or "")
+            while true do
                 local success, response = pcall(function()
-                    return game:HttpGet(url)
+                    return game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100")
                 end)
 
                 if success then
                     local data = HttpService:JSONDecode(response)
-                    for _, server in pairs(data.data) do
+                    for _, server in ipairs(data.data) do
                         if server.id ~= currentJobId and server.playing < server.maxPlayers then
                             TeleportService:TeleportToPlaceInstance(placeId, server.id, player)
-                            found = true
-                            break
+                            return
                         end
                     end
-                    if found then break end
-                    cursor = data.nextPageCursor
-                    if not cursor then break end
+                    -- retry again in 2 seconds
+                    task.wait(2)
                 else
-                    warn("Failed to fetch server list.")
-                    break
+                    warn("[New Server] Failed to get server list. Retrying...")
+                    task.wait(2)
                 end
-            end
-
-            if not found then
-                warn("No other server found. Joining game normally...")
-                TeleportService:Teleport(placeId, player)
             end
         end)
     end)

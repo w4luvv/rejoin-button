@@ -4,9 +4,9 @@ task.spawn(function()
     local HttpService = game:GetService("HttpService")
     local TeleportService = game:GetService("TeleportService")
     local Players = game:GetService("Players")
+    local TweenService = game:GetService("TweenService")
     local Player = Players.LocalPlayer
-    local PlaceId = game.PlaceId
-    local JobId = game.JobId
+    local PlaceId, JobId = game.PlaceId, game.JobId
 
     local RootFolder = "ServerHop"
     local StorageFile = `{RootFolder}/{PlaceId}.json`
@@ -14,19 +14,23 @@ task.spawn(function()
 
     if not isfolder(RootFolder) then makefolder(RootFolder) end
     if isfile(StorageFile) then
-        local data = HttpService:JSONDecode(readfile(StorageFile))
-        if tick() - data.Start < 3600 then
-            Tracked = data
+        local success, result = pcall(function()
+            return HttpService:JSONDecode(readfile(StorageFile))
+        end)
+        if success and result and tick() - result.Start < 86400 then
+            Tracked = result
         end
     end
+
     if not table.find(Tracked.Jobs, JobId) then
-        table.insert(Tracked.Jobs, JobId)
-        writefile(StorageFile, HttpService:JSONEncode(Tracked))
+        table.insert(Tracked.Jobs, 1, JobId)
+        pcall(function()
+            writefile(StorageFile, HttpService:JSONEncode(Tracked))
+        end)
     end
 
     local function ServerHopSmart()
-        local cursor = ""
-        local triedServers = {}
+        local triedServers, cursor = {}, ""
 
         local function fetchServers()
             local url = `https://games.roblox.com/v1/games/{PlaceId}/servers/Public?sortOrder=Asc&limit=100{cursor ~= "" and "&cursor="..cursor or ""}`
@@ -42,16 +46,14 @@ task.spawn(function()
             if not servers then break end
 
             for _, server in ipairs(servers) do
-                local isJoinable = server.playing < server.maxPlayers
+                local joinable = server.playing < server.maxPlayers
                     and not table.find(Tracked.Jobs, server.id)
                     and not table.find(triedServers, server.id)
                     and server.id ~= JobId
 
-                if isJoinable then
-                    table.insert(Tracked.Jobs, server.id)
-                    table.insert(triedServers, server.id)
+                if joinable then
+                    table.insert(Tracked.Jobs, 1, server.id)
                     writefile(StorageFile, HttpService:JSONEncode(Tracked))
-
                     TeleportService:TeleportToPlaceInstance(PlaceId, server.id, Player)
                     return
                 end
@@ -59,19 +61,16 @@ task.spawn(function()
 
             if cursor == "" then
                 task.wait(2)
-                cursor = ""
                 triedServers = {}
             end
         end
     end
 
-    -- GUI SETUP
+    -- GUI Setup
     local guiParent = Player:WaitForChild("PlayerGui", 5) or game:GetService("CoreGui")
-    local screenGui = Instance.new("ScreenGui")
+    local screenGui = Instance.new("ScreenGui", guiParent)
     screenGui.Name = "ServerHopUI"
-    screenGui.ResetOnSpawn = false
-    screenGui.IgnoreGuiInset = true
-    screenGui.Parent = guiParent
+    screenGui.ResetOnSpawn, screenGui.IgnoreGuiInset = false, true
 
     local function CreateButtonFrame(position, text, onClick)
         local frame = Instance.new("Frame")
@@ -79,11 +78,10 @@ task.spawn(function()
         frame.Position = position
         frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
         frame.BorderSizePixel = 0
-        frame.Active = true
-        frame.Draggable = true
+        frame.Active, frame.Draggable = true, true
         frame.Parent = screenGui
 
-        local button = Instance.new("TextButton")
+        local button = Instance.new("TextButton", frame)
         button.Size = UDim2.new(1, 0, 1, 0)
         button.Text = text
         button.TextColor3 = Color3.new(1, 1, 1)
@@ -91,109 +89,94 @@ task.spawn(function()
         button.Font = Enum.Font.GothamBold
         button.TextSize = 17
         button.AutoButtonColor = true
-        button.Parent = frame
 
         button.MouseButton1Click:Connect(onClick)
     end
 
-    -- Rejoin and ServerHop buttons
-    CreateButtonFrame(
-        UDim2.new(0.5, -160, 1, -130),
-        "Rejoin Server",
-        function()
-            TeleportService:TeleportToPlaceInstance(PlaceId, JobId, Player)
-        end
-    )
+    CreateButtonFrame(UDim2.new(0.5, -160, 1, -130), "Rejoin Server", function()
+        TeleportService:TeleportToPlaceInstance(PlaceId, JobId, Player)
+    end)
 
-    CreateButtonFrame(
-        UDim2.new(0.5, 10, 1, -130),
-        "Server Hop",
-        ServerHopSmart
-    )
+    CreateButtonFrame(UDim2.new(0.5, 10, 1, -130), "Server Hop", ServerHopSmart)
 
-    -- Toggle Arrow
-    local toggleBtn = Instance.new("TextButton")
+    -- Sidebar for server history
+    local sidebar = Instance.new("Frame", screenGui)
+    sidebar.Size = UDim2.new(0, 270, 1, 0)
+    sidebar.Position = UDim2.new(1, 0, 0, 0)
+    sidebar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    sidebar.BorderSizePixel = 0
+    sidebar.ZIndex = 2
+
+    local scroll = Instance.new("ScrollingFrame", sidebar)
+    scroll.Size = UDim2.new(1, 0, 1, 0)
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.ScrollBarThickness = 6
+    scroll.BackgroundTransparency = 1
+    scroll.ZIndex = 2
+
+    local toggleBtn = Instance.new("TextButton", screenGui)
     toggleBtn.Text = "➤"
     toggleBtn.Size = UDim2.new(0, 30, 0, 60)
     toggleBtn.Position = UDim2.new(1, -35, 0.5, -30)
     toggleBtn.AnchorPoint = Vector2.new(0, 0.5)
     toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggleBtn.Parent = screenGui
     toggleBtn.ZIndex = 3
 
-    -- Sidebar
-    local sidebar = Instance.new("Frame")
-    sidebar.Size = UDim2.new(0, 250, 1, 0)
-    sidebar.Position = UDim2.new(1, 0, 0, 0)
-    sidebar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    sidebar.BorderSizePixel = 0
-    sidebar.Visible = true
-    sidebar.Parent = screenGui
-    sidebar.ZIndex = 2
-
-    local scroll = Instance.new("ScrollingFrame")
-    scroll.Size = UDim2.new(1, 0, 1, 0)
-    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    scroll.ScrollBarThickness = 6
-    scroll.BackgroundTransparency = 1
-    scroll.Parent = sidebar
-    scroll.ZIndex = 2
-
-    local function refreshServerList()
-        scroll:ClearAllChildren()
-        local y = 0
-        for _, id in ipairs(Tracked.Jobs) do
-            local row = Instance.new("Frame")
-            row.Size = UDim2.new(1, -10, 0, 40)
-            row.Position = UDim2.new(0, 5, 0, y)
-            row.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-            row.BorderSizePixel = 0
-            row.Parent = scroll
-            row.ZIndex = 2
-
-            local text = Instance.new("TextLabel")
-            text.Size = UDim2.new(1, -60, 1, 0)
-            text.Position = UDim2.new(0, 5, 0, 0)
-            text.Text = "Server ID: "..id
-            text.TextXAlignment = Enum.TextXAlignment.Left
-            text.BackgroundTransparency = 1
-            text.TextColor3 = Color3.new(1, 1, 1)
-            text.Font = Enum.Font.Code
-            text.TextSize = 14
-            text.Parent = row
-            text.ZIndex = 2
-
-            local join = Instance.new("TextButton")
-            join.Size = UDim2.new(0, 50, 0, 30)
-            join.Position = UDim2.new(1, -55, 0.5, -15)
-            join.Text = "Join"
-            join.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-            join.TextColor3 = Color3.fromRGB(255, 255, 255)
-            join.Font = Enum.Font.GothamBold
-            join.TextSize = 14
-            join.Parent = row
-            join.ZIndex = 2
-
-            join.MouseButton1Click:Connect(function()
-                TeleportService:TeleportToPlaceInstance(PlaceId, id, Player)
-            end)
-
-            y += 45
-        end
-        scroll.CanvasSize = UDim2.new(0, 0, 0, y)
-    end
-
+    local sidebarOpen = false
     toggleBtn.MouseButton1Click:Connect(function()
-        local isOpen = sidebar.Position.X.Scale < 1
-        local target = isOpen and UDim2.new(1, 0, 0, 0) or UDim2.new(1, -250, 0, 0)
-        local tween = game:GetService("TweenService"):Create(
+        sidebarOpen = not sidebarOpen
+        toggleBtn.Text = sidebarOpen and "◀" or "➤"
+        local tween = TweenService:Create(
             sidebar,
             TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-            { Position = target }
+            { Position = sidebarOpen and UDim2.new(1, -270, 0, 0) or UDim2.new(1, 0, 0, 0) }
         )
         tween:Play()
     end)
 
-    refreshServerList()
+    local function RefreshServerList()
+        scroll:ClearAllChildren()
+        local y = 5
+
+        for _, id in ipairs(Tracked.Jobs) do
+            local container = Instance.new("Frame", scroll)
+            container.Size = UDim2.new(1, -10, 0, 45)
+            container.Position = UDim2.new(0, 5, 0, y)
+            container.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+            container.BorderSizePixel = 0
+            container.ZIndex = 2
+
+            local label = Instance.new("TextLabel", container)
+            label.Size = UDim2.new(1, -65, 1, 0)
+            label.Position = UDim2.new(0, 5, 0, 0)
+            label.BackgroundTransparency = 1
+            label.Text = `Server ID: {id}` .. (id == JobId and " [Current]" or "")
+            label.TextColor3 = id == JobId and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 255, 255)
+            label.Font = Enum.Font.Gotham
+            label.TextSize = 14
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.ZIndex = 2
+
+            local joinBtn = Instance.new("TextButton", container)
+            joinBtn.Size = UDim2.new(0, 50, 0, 25)
+            joinBtn.Position = UDim2.new(1, -55, 0.5, -12)
+            joinBtn.Text = "Join"
+            joinBtn.Font = Enum.Font.GothamBold
+            joinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            joinBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+            joinBtn.TextSize = 14
+            joinBtn.ZIndex = 2
+
+            joinBtn.MouseButton1Click:Connect(function()
+                TeleportService:TeleportToPlaceInstance(PlaceId, id, Player)
+            end)
+
+            y += 50
+        end
+
+        scroll.CanvasSize = UDim2.new(0, 0, 0, y)
+    end
+
+    RefreshServerList()
 end)

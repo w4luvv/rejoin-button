@@ -21,7 +21,7 @@ if allowedPlaceIds[game.PlaceId] and not _G._hasRunRejoinStuff then
     task.spawn(function()
         print("Loading Rejoin Button")
         local success, result = pcall(function()
-            return game:HttpGet("https://raw.githubusercontent.com/w4luvv/rejoin-button/refs/heads/main/main")
+            return game:HttpGet("https://raw.githubusercontent.com/w4luvv/rejoin-button/refs/heads/main/main.lua")
         end)
 
         if success and result then
